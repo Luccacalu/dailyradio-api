@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------
+// ENUMS & TYPES
+// ----------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  BANNED
+}
+
+enum StationRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum RatingSystem {
+  REVIEW_ONLY
+  STARS_ONLY
+  REVIEW_AND_STARS
+  OPTIONAL_REVIEW
+  OPTIONAL_STARS
+}
+
+enum SetStatus {
+  ACTIVE
+  FINISHED
+  FINISHED_AND_OPEN
+}
+
+// ----------------------------------------
+// CORE MODELS
+// ----------------------------------------
+
+model User {
+  id                String     @id @default(uuid())
+  name              String
+  passwordHash      String     @map("password_hash")
+  email             String     @unique
+  username          String     @unique
+  emailVerified     Boolean    @default(false) @map("email_verified")
+  phone             String?
+  bio               String?
+  spotifyProfileUrl String?    @map("spotify_profile_url")
+  imageUrl          String?    @map("image_url")
+  status            UserStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  createdStations Station[]         @relation("CreatedStations")
+  memberships     StationMember[]
+  submissions     MusicSubmission[]
+  reviews         Review[]
+  setComments     SetComment[]
+  setReadyVotes   SetReadyVote[]
+
+  @@map("users")
+}
+
+model Station {
+  id                     String       @id @default(uuid())
+  name                   String
+  description            String?
+  imageUrl               String?      @map("image_url")
+  passwordHash           String?      @map("password_hash")
+  maxSongsPerUserPerSet  Int          @default(1) @map("max_songs_per_user_per_set")
+  votingThresholdPercent Int          @default(100) @map("voting_threshold_percent")
+  ratingSystem           RatingSystem @default(REVIEW_AND_STARS) @map("rating_system")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  creatorId String          @map("creator_id")
+  creator   User            @relation("CreatedStations", fields: [creatorId], references: [id])
+  members   StationMember[]
+  sets      Set[]
+
+  @@map("stations")
+}
+
+model Set {
+  id        String    @id @default(uuid())
+  setNumber Int       @map("set_number")
+  status    SetStatus @default(ACTIVE)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  stationId   String            @map("station_id")
+  station     Station           @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  submissions MusicSubmission[]
+  comments    SetComment[]
+  readyVotes  SetReadyVote[]
+
+  @@index([stationId])
+  @@map("sets")
+}
+
+model MusicSubmission {
+  id         String   @id @default(uuid())
+  songTitle  String   @map("song_title")
+  artistName String   @map("artist_name")
+  youtubeUrl String?  @map("youtube_url")
+  spotifyUrl String?  @map("spotify_url")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  submitterId String?  @map("submitter_id")
+  submitter   User?    @relation(fields: [submitterId], references: [id], onDelete: SetNull)
+  setId       String   @map("set_id")
+  set         Set      @relation(fields: [setId], references: [id], onDelete: Cascade)
+  reviews     Review[]
+
+  @@index([setId])
+  @@map("music_submissions")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Float?
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  authorId     String?         @map("author_id")
+  author       User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  submissionId String          @map("submission_id")
+  submission   MusicSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  parentId String?  @map("parent_id")
+  parent   Review?  @relation("Replies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies  Review[] @relation("Replies")
+
+  @@map("reviews")
+}
+
+model SetComment {
+  id        String   @id @default(uuid())
+  comment   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  authorId String? @map("author_id")
+  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  setId    String  @map("set_id")
+  set      Set     @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  parentId String?      @map("parent_id")
+  parent   SetComment?  @relation("Replies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies  SetComment[] @relation("Replies")
+
+  @@map("set_comments")
+}
+
+model SetReadyVote {
+  userId String @map("user_id")
+  setId  String @map("set_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  set  Set  @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@id([userId, setId])
+  @@map("set_ready_votes")
+}
+
+// ----------------------------------------
+// RELATIONAL MODELS (JOIN TABLES)
+// ----------------------------------------
+
+model StationMember {
+  userId    String      @map("user_id")
+  stationId String      @map("station_id")
+  role      StationRole @default(MEMBER)
+  joinedAt  DateTime    @default(now()) @map("joined_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, stationId])
+  @@map("station_members")
+}
