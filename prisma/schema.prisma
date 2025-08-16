@@ -24,11 +24,15 @@ enum StationRole {
 }
 
 enum RatingSystem {
-  REVIEW_ONLY
-  STARS_ONLY
-  REVIEW_AND_STARS
-  OPTIONAL_REVIEW
-  OPTIONAL_STARS
+  TRUE
+  FALSE
+  OPTIONAL
+}
+
+enum ReviewSystem {
+  TRUE
+  FALSE
+  OPTIONAL
 }
 
 enum SetStatus {
@@ -74,7 +78,8 @@ model Station {
   passwordHash           String?      @map("password_hash")
   maxSongsPerUserPerSet  Int          @default(1) @map("max_songs_per_user_per_set")
   votingThresholdPercent Int          @default(100) @map("voting_threshold_percent")
-  ratingSystem           RatingSystem @default(REVIEW_AND_STARS) @map("rating_system")
+  ratingSystem           RatingSystem @default(OPTIONAL) @map("rating_system")
+  reviewSystem           ReviewSystem @default(TRUE) @map("review_system")
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
 
