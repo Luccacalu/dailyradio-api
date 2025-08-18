@@ -13,6 +13,14 @@ async function bootstrap() {
     .setTitle('Daily Radio API')
     .setDescription('A documentação da API para o projeto Daily Radio.')
     .setVersion('0.0.01')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+      },
+      'apiKey',
+    )
     .addBearerAuth()
     .build();
 

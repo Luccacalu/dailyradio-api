@@ -19,4 +19,42 @@ export class UsersService {
       },
     });
   }
+
+  async findByVerificationToken(token: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { emailVerificationToken: token },
+    });
+  }
+
+  async findById(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  async verifyUser(userId: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerified: true,
+        status: 'ACTIVE',
+        emailVerificationToken: null,
+        emailTokenExpiresAt: null,
+      },
+    });
+  }
+
+  async updateVerificationToken(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationToken: token,
+        emailTokenExpiresAt: expiresAt,
+      },
+    });
+  }
 }

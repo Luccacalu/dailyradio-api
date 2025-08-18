@@ -5,7 +5,10 @@ CREATE TYPE "public"."UserStatus" AS ENUM ('ACTIVE', 'PENDING_VERIFICATION', 'BA
 CREATE TYPE "public"."StationRole" AS ENUM ('ADMIN', 'MODERATOR', 'MEMBER');
 
 -- CreateEnum
-CREATE TYPE "public"."RatingSystem" AS ENUM ('REVIEW_ONLY', 'STARS_ONLY', 'REVIEW_AND_STARS', 'OPTIONAL_REVIEW', 'OPTIONAL_STARS');
+CREATE TYPE "public"."RatingSystem" AS ENUM ('TRUE', 'FALSE', 'OPTIONAL');
+
+-- CreateEnum
+CREATE TYPE "public"."ReviewSystem" AS ENUM ('TRUE', 'FALSE', 'OPTIONAL');
 
 -- CreateEnum
 CREATE TYPE "public"."SetStatus" AS ENUM ('ACTIVE', 'FINISHED', 'FINISHED_AND_OPEN');
@@ -38,7 +41,8 @@ CREATE TABLE "public"."stations" (
     "password_hash" TEXT,
     "max_songs_per_user_per_set" INTEGER NOT NULL DEFAULT 1,
     "voting_threshold_percent" INTEGER NOT NULL DEFAULT 100,
-    "rating_system" "public"."RatingSystem" NOT NULL DEFAULT 'REVIEW_AND_STARS',
+    "rating_system" "public"."RatingSystem" NOT NULL DEFAULT 'OPTIONAL',
+    "review_system" "public"."ReviewSystem" NOT NULL DEFAULT 'TRUE',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "creator_id" TEXT NOT NULL,

@@ -1,10 +1,25 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  Query,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiSecurity,
+} from '@nestjs/swagger';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 
 @ApiTags('auth')
+@ApiSecurity('apiKey')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -39,5 +54,25 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciais inválidas.' })
   login(@Body() loginUserDto: LoginUserDto) {
     return this.authService.login(loginUserDto);
+  }
+
+  @Get('verify-email')
+  @ApiOperation({ summary: 'Verifica o e-mail de um usuário usando um token' })
+  @ApiResponse({ status: 200, description: 'E-mail verificado com sucesso.' })
+  @ApiResponse({ status: 400, description: 'Token inválido ou expirado.' })
+  verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reenvia o e-mail de verificação' })
+  @ApiResponse({
+    status: 200,
+    description: 'Confirmação de que o e-mail foi processado.',
+  })
+  @ApiResponse({ status: 400, description: 'O e-mail já foi verificado.' })
+  resendVerificationEmail(@Body() resendDto: ResendVerificationDto) {
+    return this.authService.resendVerificationEmail(resendDto);
   }
 }

@@ -4,7 +4,7 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 
 export class RegisterUserDto {
   @ApiProperty({
-    example: 'João da Silva',
+    example: 'Clark Kent',
     description: 'O nome completo do usuário.',
   })
   @IsString()
@@ -12,14 +12,14 @@ export class RegisterUserDto {
   name: string;
 
   @ApiProperty({
-    example: 'joao.silva@email.com',
+    example: 'clark.kent@email.com',
     description: 'O endereço de e-mail único do usuário.',
   })
   @IsEmail()
   email: string;
 
   @ApiProperty({
-    example: 'joaosilva',
+    example: 'clarkkent',
     description: 'O nome de usuário único, usado para login e menções.',
     minLength: 3,
   })
