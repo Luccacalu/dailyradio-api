@@ -11,9 +11,16 @@ import { validationSchema } from './config/app.config';
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { HealthModule } from './modules/health/health.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 20,
+      },
+    ]),
     ScheduleModule.forRoot(),
     TasksModule,
     ConfigModule.forRoot({ isGlobal: true, validationSchema }),
@@ -30,6 +37,10 @@ import { HealthModule } from './modules/health/health.module';
     {
       provide: APP_GUARD,
       useClass: ApiKeyGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })
