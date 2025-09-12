@@ -12,6 +12,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { HealthModule } from './modules/health/health.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { StationsModule } from './modules/stations/stations.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     EmailModule,
     TasksModule,
     HealthModule,
+    StationsModule,
   ],
   controllers: [],
   providers: [

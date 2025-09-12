@@ -41,6 +41,12 @@ enum SetStatus {
   FINISHED_AND_OPEN
 }
 
+enum StationMode {
+  FREEFLOW
+  BACKSTAGE
+  TOUR
+}
+
 // ----------------------------------------
 // CORE MODELS
 // ----------------------------------------
@@ -79,12 +85,14 @@ model Station {
   description            String?
   imageUrl               String?      @map("image_url")
   passwordHash           String?      @map("password_hash")
-  maxSongsPerUserPerSet  Int          @default(1) @map("max_songs_per_user_per_set")
-  votingThresholdPercent Int          @default(100) @map("voting_threshold_percent")
+  maxSongsPerUserPerSet  Int?         @default(1) @map("max_songs_per_user_per_set")
+  votingThresholdPercent Int?         @default(100) @map("voting_threshold_percent")
   ratingSystem           RatingSystem @default(OPTIONAL) @map("rating_system")
   reviewSystem           ReviewSystem @default(TRUE) @map("review_system")
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  mode StationMode @default(FREEFLOW)
 
   creatorId String          @map("creator_id")
   creator   User            @relation("CreatedStations", fields: [creatorId], references: [id])

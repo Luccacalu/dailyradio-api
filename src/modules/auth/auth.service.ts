@@ -1,4 +1,3 @@
-// src/auth/auth.service.ts
 import {
   Injectable,
   ConflictException,
@@ -25,14 +24,13 @@ export class AuthService {
 
   async register(registerUserDto: RegisterUserDto) {
     const hashedPassword = await bcrypt.hash(registerUserDto.password, 10);
-    const lowerCaseEmail = registerUserDto.email.toLowerCase();
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const tokenExpiresAt = new Date(Date.now() + 3600000);
 
     try {
       const user = await this.usersService.createUser({
         name: registerUserDto.name,
-        email: lowerCaseEmail,
+        email: registerUserDto.email.toLocaleLowerCase(),
         username: registerUserDto.username,
         passwordHash: hashedPassword,
         emailVerificationToken: verificationToken,
