@@ -24,6 +24,7 @@ import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
 import type { User } from '@prisma/client';
 import { JoinStationDto } from './dto/join-station.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @ApiTags('stations')
 @ApiSecurity('apiKey')
@@ -120,5 +121,52 @@ export class StationsController {
   })
   leave(@Param('id') stationId: string, @GetCurrentUser() user: User) {
     return this.stationsService.leave(stationId, user.id);
+  }
+
+  @Get(':id/sets')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Lista todos os sets de uma estação (passados e atual)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de sets retornada com sucesso.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado. Usuário não é membro da estação.',
+  })
+  findAllSets(@Param('id') stationId: string, @GetCurrentUser() user: User) {
+    return this.stationsService.findAllSets(stationId, user.id);
+  }
+
+  @Patch(':stationId/members/:memberId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Altera o cargo de um membro na estação (Admin Only)',
+  })
+  @ApiResponse({ status: 200, description: 'Cargo alterado com sucesso.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado. Requer cargo de Admin.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Estação ou membro não encontrado.',
+  })
+  updateMemberRole(
+    @Param('stationId') stationId: string,
+    @Param('memberId') memberId: string,
+    @GetCurrentUser() user: User,
+    @Body() updateMemberRoleDto: UpdateMemberRoleDto,
+  ) {
+    return this.stationsService.updateMemberRole(
+      stationId,
+      memberId,
+      user.id,
+      updateMemberRoleDto,
+    );
   }
 }

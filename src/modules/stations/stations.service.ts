@@ -12,6 +12,8 @@ import { UpdateStationDto } from './dto/update-station.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { JoinStationDto } from './dto/join-station.dto';
+import { StationMode, StationRole, type Set } from '@prisma/client';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
 export class StationsService {
@@ -59,6 +61,20 @@ export class StationsService {
           role: 'ADMIN',
         },
       });
+
+      if (
+        station.mode === StationMode.FREEFLOW ||
+        station.mode === StationMode.BACKSTAGE
+      ) {
+        await tx.set.create({
+          data: {
+            stationId: station.id,
+            setNumber: 1,
+            status: 'ACTIVE',
+          },
+        });
+        this.logger.log(`Set inicial #1 criado para a estação ${station.name}`);
+      }
 
       this.logger.log(
         `Estação "${station.name}" (ID: ${station.id}) criada pelo usuário ${creatorId}`,
@@ -217,5 +233,76 @@ export class StationsService {
     this.logger.log(`Usuário ${userId} saiu da estação ${stationId}`);
 
     return { message: 'Você saiu da estação com sucesso.' };
+  }
+
+  async findAllSets(stationId: string, userId: string): Promise<Set[]> {
+    await this.prisma.stationMember
+      .findFirstOrThrow({
+        where: { userId, stationId },
+      })
+      .catch(() => {
+        throw new ForbiddenException(
+          'Acesso negado. Você não é membro desta estação.',
+        );
+      });
+
+    return this.prisma.set.findMany({
+      where: { stationId },
+      orderBy: {
+        setNumber: 'desc',
+      },
+    });
+  }
+
+  async updateMemberRole(
+    stationId: string,
+    targetUserId: string,
+    currentUserId: string,
+    dto: UpdateMemberRoleDto,
+  ) {
+    const currentUserMembership = await this.prisma.stationMember.findUnique({
+      where: { userId_stationId: { userId: currentUserId, stationId } },
+    });
+
+    if (
+      !currentUserMembership ||
+      currentUserMembership.role !== StationRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Acesso negado. Apenas administradores podem alterar cargos.',
+      );
+    }
+
+    if (targetUserId === currentUserId) {
+      throw new ForbiddenException('Você não pode alterar seu próprio cargo.');
+    }
+
+    await this.prisma.stationMember
+      .findUniqueOrThrow({
+        where: { userId_stationId: { userId: targetUserId, stationId } },
+      })
+      .catch(() => {
+        throw new NotFoundException(
+          'O usuário alvo não é membro desta estação.',
+        );
+      });
+
+    const updatedMembership = await this.prisma.stationMember.update({
+      where: {
+        userId_stationId: {
+          userId: targetUserId,
+          stationId,
+        },
+      },
+      data: {
+        role: dto.role,
+      },
+    });
+
+    this.logger.log(
+      `Cargo do usuário ${targetUserId} na estação ${stationId} alterado para ${dto.role} pelo admin ${currentUserId}`,
+    );
+
+    return updatedMembership;
   }
 }

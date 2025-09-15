@@ -13,6 +13,9 @@ import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { HealthModule } from './modules/health/health.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { StationsModule } from './modules/stations/stations.module';
+import { SetsModule } from './modules/sets/sets.module';
+import { SubmissionsModule } from './modules/submissions/submissions.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { StationsModule } from './modules/stations/stations.module';
     TasksModule,
     HealthModule,
     StationsModule,
+    SetsModule,
+    SubmissionsModule,
+    ReviewsModule,
   ],
   controllers: [],
   providers: [
