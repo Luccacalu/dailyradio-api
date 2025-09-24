@@ -23,7 +23,8 @@ export class AuthService {
   ) {}
 
   async register(registerUserDto: RegisterUserDto) {
-    const hashedPassword = await bcrypt.hash(registerUserDto.password, 10);
+    const salt = await bcrypt.genSalt(8);
+    const hashedPassword = await bcrypt.hash(registerUserDto.password, salt);
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const tokenExpiresAt = new Date(Date.now() + 3600000);
 
