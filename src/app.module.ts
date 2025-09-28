@@ -15,6 +15,7 @@ import { StationsModule } from './modules/stations/stations.module';
 import { SetsModule } from './modules/sets/sets.module';
 import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { AppController } from './app/app.controller';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     SubmissionsModule,
     ReviewsModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [
     PrismaService,
     {
