@@ -17,7 +17,6 @@ import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
-  ApiSecurity,
   ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
@@ -27,7 +26,6 @@ import { JoinStationDto } from './dto/join-station.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @ApiTags('stations')
-@ApiSecurity('apiKey')
 @Controller('stations')
 export class StationsController {
   constructor(private readonly stationsService: StationsService) {}

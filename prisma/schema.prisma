@@ -47,6 +47,11 @@ enum StationMode {
   TOUR
 }
 
+enum StationVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 // ----------------------------------------
 // CORE MODELS
 // ----------------------------------------
@@ -91,6 +96,8 @@ model Station {
   reviewSystem           ReviewSystem @default(TRUE) @map("review_system")
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  visibility StationVisibility @default(PUBLIC)
 
   mode StationMode @default(FREEFLOW)
 

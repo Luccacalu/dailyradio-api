@@ -32,6 +32,26 @@ export class UsersService {
     });
   }
 
+  async findUserStations(userId: string) {
+    return this.prisma.station.findMany({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      include: {
+        _count: {
+          select: { members: true },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  }
+
   async verifyUser(userId: string): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },

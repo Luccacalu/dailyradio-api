@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { StationVisibility } from '@prisma/client';
 import {
   IsOptional,
   IsString,
@@ -85,4 +86,13 @@ export class CreateStationDto {
   @IsInt()
   @Min(1)
   reviewsNeededToPost?: number;
+
+  @ApiPropertyOptional({
+    description: 'A visibilidade da estação (pública ou privada).',
+    enum: StationVisibility,
+    default: StationVisibility.PUBLIC,
+  })
+  @IsOptional()
+  @IsEnum(StationVisibility)
+  visibility?: StationVisibility;
 }

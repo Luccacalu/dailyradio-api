@@ -1,11 +1,6 @@
 import { Body, Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
 import { SubmissionsService } from './submissions.service';
-import {
-  ApiTags,
-  ApiSecurity,
-  ApiBearerAuth,
-  ApiOperation,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { ReviewsService } from '../reviews/reviews.service';
 import type { User } from '@prisma/client';
@@ -13,7 +8,6 @@ import { GetCurrentUser } from 'src/shared/decorators/get-current-user.decorator
 import { CreateReviewDto } from '../reviews/dto/create-review.dto';
 
 @ApiTags('submissions')
-@ApiSecurity('apiKey')
 @Controller('submissions')
 export class SubmissionsController {
   constructor(

@@ -12,7 +12,12 @@ import { UpdateStationDto } from './dto/update-station.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { JoinStationDto } from './dto/join-station.dto';
-import { StationMode, StationRole, type Set } from '@prisma/client';
+import {
+  StationMode,
+  StationRole,
+  StationVisibility,
+  type Set,
+} from '@prisma/client';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
@@ -41,7 +46,8 @@ export class StationsService {
 
     let passwordHash: string | null = null;
     if (createStationDto.password) {
-      passwordHash = await bcrypt.hash(createStationDto.password, 10);
+      const salt = await bcrypt.genSalt(8);
+      passwordHash = await bcrypt.hash(createStationDto.password, salt);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -49,7 +55,11 @@ export class StationsService {
         data: {
           name: createStationDto.name,
           description: createStationDto.description,
+          visibility: createStationDto.visibility,
           passwordHash,
+          mode: createStationDto.mode,
+          maxSongsPerUserPerSet: createStationDto.maxSongsPerUserPerSet,
+          votingThresholdPercent: createStationDto.votingThresholdPercent,
           creatorId,
         },
       });
@@ -86,7 +96,7 @@ export class StationsService {
 
   findAll() {
     return this.prisma.station.findMany({
-      where: { passwordHash: null },
+      where: { visibility: StationVisibility.PUBLIC },
       orderBy: { createdAt: 'desc' },
     });
   }

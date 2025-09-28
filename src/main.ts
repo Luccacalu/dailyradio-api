@@ -1,10 +1,10 @@
-// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
+import { env } from 'process';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,14 +16,6 @@ async function bootstrap() {
     .setTitle('Daily Radio API')
     .setDescription('A documentação da API para o projeto Daily Radio.')
     .setVersion('0.0.01')
-    .addApiKey(
-      {
-        type: 'apiKey',
-        name: 'x-api-key',
-        in: 'header',
-      },
-      'apiKey',
-    )
     .addBearerAuth()
     .build();
 
@@ -31,6 +23,12 @@ async function bootstrap() {
 
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  const port = env.PORT || 3500;
+  await app.listen(port, '0.0.0.0');
+
+  console.log(`
+    Server running in http://localhost:${port}
+    API documentation in http://localhost:${port}/api
+  `);
 }
 bootstrap();

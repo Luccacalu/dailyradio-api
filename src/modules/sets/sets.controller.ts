@@ -14,7 +14,6 @@ import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
-  ApiSecurity,
   ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
@@ -23,7 +22,6 @@ import type { User } from '@prisma/client';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 
 @ApiTags('sets')
-@ApiSecurity('apiKey')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller('sets')

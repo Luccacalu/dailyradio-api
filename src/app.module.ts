@@ -9,7 +9,6 @@ import { TasksModule } from './core/tasks/tasks.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { validationSchema } from './config/app.config';
 import { APP_GUARD } from '@nestjs/core';
-import { ApiKeyGuard } from './shared/guards/api-key.guard';
 import { HealthModule } from './modules/health/health.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { StationsModule } from './modules/stations/stations.module';
@@ -42,10 +41,6 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
   controllers: [],
   providers: [
     PrismaService,
-    {
-      provide: APP_GUARD,
-      useClass: ApiKeyGuard,
-    },
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

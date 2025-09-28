@@ -4,7 +4,6 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
@@ -13,7 +12,6 @@ import { UsersService } from './users.service';
 import type { User } from '@prisma/client';
 
 @ApiTags('users')
-@ApiSecurity('apiKey')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -30,5 +28,13 @@ export class UsersController {
   getMe(@GetCurrentUser() user: User) {
     const { passwordHash: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
+  }
+
+  @Get('me/stations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Retorna as estações do usuário logado' })
+  getMyStations(@GetCurrentUser() user: User) {
+    return this.usersService.findUserStations(user.id);
   }
 }
