@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../../core/email/email.module';
 import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './jwt.strategy';
+import { AccessTokenStrategy } from './access-token.strategy';
 
 @Module({
   imports: [
@@ -14,7 +14,8 @@ import { JwtStrategy } from './jwt.strategy';
     EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule.forRoot(),
-    JwtModule.registerAsync({
+    JwtModule.register({}),
+    /* JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -23,9 +24,9 @@ import { JwtStrategy } from './jwt.strategy';
           expiresIn: configService.get<string>('JWT_EXPIRATION'),
         },
       }),
-    }),
+    }), */
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, AccessTokenStrategy],
 })
 export class AuthModule {}

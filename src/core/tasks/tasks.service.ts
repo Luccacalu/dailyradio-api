@@ -37,4 +37,25 @@ export class TasksService {
       this.logger.log('Nenhum usuário não verificado para limpar.');
     }
   }
+
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async handleCleanupExpiredSessions() {
+    this.logger.log('Iniciando limpeza de sessões expiradas...');
+
+    const result = await this.prisma.session.deleteMany({
+      where: {
+        expiresAt: {
+          lt: new Date(),
+        },
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger.log(
+        `${result.count} sessão(ões) expirada(s) foram deletadas.`,
+      );
+    } else {
+      this.logger.log('Nenhuma sessão expirada para limpar.');
+    }
+  }
 }

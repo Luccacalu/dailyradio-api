@@ -1,17 +1,16 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { User } from '@prisma/client';
 import type { Request } from 'express';
 
 interface RequestWithUserAndSession extends Request {
   user: {
-    user: User;
+    user: any;
     sessionId: string;
   };
 }
 
-export const GetCurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): User => {
+export const GetCurrentSessionId = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest<RequestWithUserAndSession>();
-    return request.user.user;
+    return request.user.sessionId;
   },
 );

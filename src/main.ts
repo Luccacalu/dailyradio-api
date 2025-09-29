@@ -5,11 +5,18 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
 import { env } from 'process';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
   app.useGlobalFilters(new AllExceptionsFilter());
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  app.use(cookieParser());
+  app.enableCors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   const config = new DocumentBuilder()
