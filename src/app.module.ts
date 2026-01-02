@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from './core/database/prisma.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './core/database/prisma.module';
@@ -28,11 +27,10 @@ import { AppController } from './app/app.controller';
     ScheduleModule.forRoot(),
     TasksModule,
     ConfigModule.forRoot({ isGlobal: true, validationSchema }),
+    PrismaModule,
     AuthModule,
     UsersModule,
-    PrismaModule,
     EmailModule,
-    TasksModule,
     HealthModule,
     StationsModule,
     SetsModule,
@@ -41,7 +39,6 @@ import { AppController } from './app/app.controller';
   ],
   controllers: [AppController],
   providers: [
-    PrismaService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

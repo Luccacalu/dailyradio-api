@@ -11,13 +11,15 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
   app.useGlobalFilters(new AllExceptionsFilter());
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
   app.use(cookieParser());
   app.enableCors({
     origin: process.env.FRONTEND_URL,
     credentials: true,
   });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('Daily Radio API')
