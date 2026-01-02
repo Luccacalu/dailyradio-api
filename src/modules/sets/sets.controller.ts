@@ -12,9 +12,9 @@ import {
 import { SetsService } from './sets.service';
 import {
   ApiTags,
-  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiCookieAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
@@ -23,7 +23,7 @@ import { CreateSubmissionDto } from './dto/create-submission.dto';
 
 @ApiTags('sets')
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiCookieAuth('access_token')
 @Controller('sets')
 export class SetsController {
   constructor(private readonly setsService: SetsService) {}

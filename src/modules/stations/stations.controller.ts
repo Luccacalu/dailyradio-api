@@ -16,8 +16,8 @@ import { UpdateStationDto } from './dto/update-station.dto';
 import {
   ApiTags,
   ApiOperation,
-  ApiBearerAuth,
   ApiResponse,
+  ApiCookieAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
@@ -32,7 +32,7 @@ export class StationsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Cria uma nova estação' })
   create(
     @Body() createStationDto: CreateStationDto,
@@ -49,7 +49,7 @@ export class StationsController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Busca uma estação pelo ID' })
   findOne(@Param('id') id: string) {
     return this.stationsService.findOne(id);
@@ -57,7 +57,7 @@ export class StationsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Atualiza uma estação' })
   update(
     @Param('id') id: string,
@@ -69,7 +69,7 @@ export class StationsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Deleta uma estação' })
   remove(@Param('id') id: string, @GetCurrentUser() user: User) {
     return this.stationsService.remove(id, user.id);
@@ -77,7 +77,7 @@ export class StationsController {
 
   @Post(':id/join')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Entra em uma estação' })
   @ApiResponse({
@@ -102,7 +102,7 @@ export class StationsController {
 
   @Delete(':id/leave')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sai de uma estação' })
   @ApiResponse({
@@ -123,7 +123,7 @@ export class StationsController {
 
   @Get(':id/sets')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Lista todos os sets de uma estação (passados e atual)',
   })
@@ -141,7 +141,7 @@ export class StationsController {
 
   @Patch(':stationId/members/:memberId')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Altera o cargo de um membro na estação (Admin Only)',
   })

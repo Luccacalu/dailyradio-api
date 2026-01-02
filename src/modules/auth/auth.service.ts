@@ -1,12 +1,10 @@
 import {
   Injectable,
-  ConflictException,
   UnauthorizedException,
   BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, Session } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
@@ -29,73 +27,73 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async register(registerUserDto: RegisterUserDto) {
-    const salt = await bcrypt.genSalt(8);
-    const hashedPassword = await bcrypt.hash(registerUserDto.password, salt);
+  // --- FLUXO DE REGISTRO ---
+
+  async register(dto: RegisterUserDto) {
+    const hashedPassword = await bcrypt.hash(dto.password, 8);
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const tokenExpiresAt = new Date(Date.now() + 3600000);
+    const tokenExpiresAt = new Date(Date.now() + 3600000); // 1 hora
 
-    try {
-      const user = await this.usersService.createUser({
-        name: registerUserDto.name,
-        email: registerUserDto.email.toLocaleLowerCase(),
-        username: registerUserDto.username,
-        passwordHash: hashedPassword,
-        emailVerificationToken: verificationToken,
-        emailTokenExpiresAt: tokenExpiresAt,
-      });
+    const user = await this.usersService.createUser({
+      name: dto.name,
+      email: dto.email.toLowerCase(),
+      username: dto.username.toLowerCase(),
+      passwordHash: hashedPassword,
+      emailVerificationToken: verificationToken,
+      emailTokenExpiresAt: tokenExpiresAt,
+    });
 
-      await this.emailService.sendVerificationEmail(
-        user.name,
-        user.email,
-        verificationToken,
-      );
+    await this.emailService.sendVerificationEmail(
+      user.name,
+      user.email,
+      verificationToken,
+    );
 
-      return {
-        message:
-          'Registro realizado com sucesso! Verifique seu e-mail para ativar sua conta.',
-      };
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Email ou nome de usuário já existe.');
-      }
-      throw error;
-    }
+    return {
+      message:
+        'Registro realizado! Verifique seu e-mail para ativar sua conta.',
+    };
   }
 
+  async verifyEmail(token: string) {
+    const user = await this.usersService.findByVerificationToken(token);
+
+    if (
+      !user ||
+      !user.emailTokenExpiresAt ||
+      user.emailTokenExpiresAt < new Date()
+    ) {
+      throw new BadRequestException(
+        'Token de verificação inválido ou expirado.',
+      );
+    }
+
+    await this.usersService.verifyUser(user.id);
+
+    return { message: 'E-mail verificado com sucesso!' };
+  }
+
+  // --- FLUXO DE AUTENTICAÇÃO ---
+
   async login(
-    loginUserDto: LoginUserDto,
+    dto: LoginUserDto,
     connectionInfo: { ipAddress?: string; userAgent?: string },
   ) {
-    const lowerCaseEmail = loginUserDto.email.toLowerCase();
-    const user = await this.usersService.findByEmail(lowerCaseEmail);
+    const user = await this.usersService.findByEmail(dto.email.toLowerCase());
 
-    if (!user) {
+    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
     if (!user.emailVerified) {
       throw new UnauthorizedException(
-        'Seu e-mail ainda não foi verificado. Por favor, verifique sua caixa de entrada.',
+        'Por favor, verifique seu e-mail antes de logar.',
       );
-    }
-
-    const isPasswordMatching = await bcrypt.compare(
-      loginUserDto.password,
-      user.passwordHash,
-    );
-
-    if (!isPasswordMatching) {
-      throw new UnauthorizedException('Credenciais inválidas.');
     }
 
     const { accessToken, refreshToken, sessionId } = await this.generateTokens(
       user.id,
     );
-
     await this.updateUserSession(
       user.id,
       refreshToken,
@@ -104,15 +102,11 @@ export class AuthService {
     );
 
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return {
-      accessToken,
-      refreshToken,
-      user: userWithoutPassword,
-    };
+    return { accessToken, refreshToken, user: userWithoutPassword };
   }
 
   async refresh(userId: string, sessionId: string, refreshToken: string) {
-    const session: Session = await this.prisma.session.findFirstOrThrow({
+    const session = await this.prisma.session.findFirstOrThrow({
       where: { id: sessionId, userId },
     });
 
@@ -120,7 +114,7 @@ export class AuthService {
       refreshToken,
       session.refreshTokenHash,
     );
-    if (!isMatch) throw new UnauthorizedException('Refresh token inválido.');
+    if (!isMatch) throw new UnauthorizedException('Sessão expirada.');
 
     const tokens = await this.generateTokens(userId, sessionId);
     await this.updateUserSession(userId, tokens.refreshToken, sessionId);
@@ -128,44 +122,27 @@ export class AuthService {
     return tokens;
   }
 
+  // --- GESTÃO DE SESSÕES ---
+
   async logout(sessionId: string) {
-    this.logger.log(`Tentando deletar a sessão: ${sessionId}`);
-
-    try {
-      await this.usersService.deleteSession(sessionId);
-      this.logger.log(
-        { sessionId },
-        'Sessão deslogada com sucesso do banco de dados.',
-      );
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        this.logger.warn(
-          { sessionId },
-          'Tentativa de logout para uma sessão que já não existe. Ação ignorada.',
-        );
-      } else {
-        this.logger.error(
-          { error: error instanceof Error ? error.message : String(error) },
-          `Falha ao deletar a sessão ${sessionId}`,
-        );
-        throw error;
-      }
-    }
-
+    await this.prisma.session.deleteMany({ where: { id: sessionId } });
     return { message: 'Deslogado com sucesso.' };
   }
 
   async logoutAll(userId: string) {
-    const { count } = await this.usersService.deleteAllUserSessions(userId);
-    this.logger.log(
-      { userId, count },
-      `Todas as ${count} sessões do usuário foram encerradas.`,
-    );
-    return { message: 'Todas as suas sessões foram encerradas.' };
+    await this.usersService.deleteAllUserSessions(userId);
+    return { message: 'Todas as sessões foram encerradas.' };
   }
+
+  async getActiveSessions(userId: string) {
+    return this.prisma.session.findMany({
+      where: { userId },
+      select: { id: true, ipAddress: true, userAgent: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // --- MÉTODOS PRIVADOS (AUXILIARES) ---
 
   private async generateTokens(userId: string, sessionId?: string) {
     const newSessionId = sessionId || crypto.randomUUID();
@@ -193,92 +170,57 @@ export class AuthService {
     connectionInfo?: { ipAddress?: string; userAgent?: string },
   ) {
     const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+    const daysToExpire =
+      this.configService.get<number>('SESSION_EXPIRES_DAYS') || 7;
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Expira em 7 dias
+    expiresAt.setDate(expiresAt.getDate() + daysToExpire);
 
     await this.prisma.session.upsert({
       where: { id: sessionId },
-      update: {
-        refreshTokenHash,
-        expiresAt,
-        ipAddress: connectionInfo?.ipAddress,
-        userAgent: connectionInfo?.userAgent,
-      },
+      update: { refreshTokenHash, expiresAt, ...connectionInfo },
       create: {
         id: sessionId,
         userId,
         refreshTokenHash,
         expiresAt,
-        ipAddress: connectionInfo?.ipAddress,
-        userAgent: connectionInfo?.userAgent,
+        ...connectionInfo,
       },
     });
   }
 
-  async verifyEmail(token: string) {
-    const user = await this.usersService.findByVerificationToken(token);
+  async resendVerificationEmail(dto: ResendVerificationDto) {
+    const email = dto.email.toLowerCase();
+    const user = await this.usersService.findByEmail(email);
 
-    if (!user || !user.emailTokenExpiresAt) {
-      throw new BadRequestException('Token de verificação inválido.');
-    }
-
-    if (user.emailTokenExpiresAt < new Date()) {
-      throw new BadRequestException('Token de verificação expirou.');
-    }
-
-    await this.usersService.verifyUser(user.id);
-
-    return {
-      message: 'E-mail verificado com sucesso! Você já pode fazer o login.',
-    };
-  }
-
-  async resendVerificationEmail(resendDto: ResendVerificationDto) {
-    const lowerCaseEmail = resendDto.email.toLowerCase();
-    const user = await this.usersService.findByEmail(lowerCaseEmail);
     if (!user) {
       return {
         message:
           'Se um usuário com este e-mail existir, um novo link de verificação foi enviado.',
       };
     }
+
     if (user.emailVerified) {
       throw new BadRequestException('Este e-mail já foi verificado.');
     }
-    const newVerificationToken = crypto.randomBytes(32).toString('hex');
-    const newExpiresAt = new Date(Date.now() + 3600000);
+
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hora
+
     await this.usersService.updateVerificationToken(
       user.id,
-      newVerificationToken,
-      newExpiresAt,
+      newToken,
+      expiresAt,
     );
+
     await this.emailService.sendNewVerificationLink(
       user.name,
       user.email,
-      newVerificationToken,
+      newToken,
     );
+
     return {
       message:
         'Se um usuário com este e-mail existir, um novo link de verificação foi enviado.',
     };
-  }
-
-  async getActiveSessions(userId: string) {
-    this.logger.debug(
-      { userId },
-      'Buscando sessões para este usuário no AuthService',
-    );
-    return this.prisma.session.findMany({
-      where: { userId: userId },
-      select: {
-        id: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
   }
 }

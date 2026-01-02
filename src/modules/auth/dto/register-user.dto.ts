@@ -1,5 +1,5 @@
-// src/auth/dto/register-user.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 
 export class RegisterUserDto {
@@ -15,6 +15,7 @@ export class RegisterUserDto {
     example: 'clark.kent@email.com',
     description: 'O endereço de e-mail único do usuário.',
   })
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   @IsEmail()
   email: string;
 
@@ -23,6 +24,7 @@ export class RegisterUserDto {
     description: 'O nome de usuário único, usado para login e menções.',
     minLength: 3,
   })
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   @IsString()
   @MinLength(3)
   username: string;

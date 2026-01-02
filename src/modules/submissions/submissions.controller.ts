@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
 import { SubmissionsService } from './submissions.service';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { ReviewsService } from '../reviews/reviews.service';
 import type { User } from '@prisma/client';
@@ -17,7 +17,7 @@ export class SubmissionsController {
 
   @Get(':id/reviews')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Busca as reviews de uma submissão de música específica',
   })
@@ -27,7 +27,7 @@ export class SubmissionsController {
 
   @Post(':id/reviews')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Cria uma nova review para uma música' })
   createReview(
     @Param('id') submissionId: string,

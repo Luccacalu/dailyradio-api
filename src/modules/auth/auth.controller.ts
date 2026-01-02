@@ -17,7 +17,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
 } from '@nestjs/swagger';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import type { Response, Request } from 'express';
@@ -29,6 +29,13 @@ import * as getRefreshTokenPayloadDecorator from 'src/shared/decorators/get-refr
 import { GetCurrentSessionId } from 'src/shared/decorators/get-current-session-id.decorator';
 import { SessionDto } from './dto/session.dto';
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict' as const,
+  path: '/',
+};
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -38,44 +45,30 @@ export class AuthController {
   @ApiOperation({ summary: 'Registra um novo usuário' })
   @ApiResponse({
     status: 201,
-    description:
-      'Usuário registrado com sucesso. Retorna os dados do usuário (sem a senha).',
+    description: 'Registro realizado. Verifique seu e-mail.',
   })
-  @ApiResponse({
-    status: 409,
-    description: 'Conflito. O e-mail ou nome de usuário já existe.',
-  })
-  register(@Body() registerUserDto: RegisterUserDto) {
-    return this.authService.register(registerUserDto);
+  register(@Body() dto: RegisterUserDto) {
+    return this.authService.register(dto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Realiza login e define cookies de sessão' })
   async login(
-    @Body() loginUserDto: LoginUserDto,
+    @Body() dto: LoginUserDto,
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ) {
-    const connectionInfo = {
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    };
-
     const { accessToken, refreshToken, user } = await this.authService.login(
-      loginUserDto,
-      connectionInfo,
+      dto,
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
     );
 
-    res.cookie('access_token', accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-    });
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-    });
+    res.cookie('access_token', accessToken, COOKIE_OPTIONS);
+    res.cookie('refresh_token', refreshToken, COOKIE_OPTIONS);
 
     return { user };
   }
@@ -83,98 +76,82 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(RefreshTokenGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Atualiza o access token usando o refresh token' })
-  @ApiBearerAuth('jwt-refresh')
+  @ApiOperation({ summary: 'Renova o access token' })
   async refresh(
     @getRefreshTokenPayloadDecorator.GetRefreshTokenPayload()
     payload: getRefreshTokenPayloadDecorator.RefreshTokenPayload,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken: newAccessToken } = await this.authService.refresh(
+    const { accessToken } = await this.authService.refresh(
       payload.sub,
       payload.sessionId,
       payload.refreshToken,
     );
 
-    res.cookie('access_token', newAccessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-    });
-
-    return { message: 'Token atualizado com sucesso.' };
+    res.cookie('access_token', accessToken, COOKIE_OPTIONS);
+    return { message: 'Token renovado.' };
   }
 
   @Post('logout')
   @UseGuards(AccessTokenGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Desloga a sessão atual' })
+  @ApiOperation({ summary: 'Encerra a sessão atual' })
   async logout(
     @GetCurrentSessionId() sessionId: string,
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.logout(sessionId);
-
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
-
+    this.clearAuthCookies(res);
     return { message: 'Deslogado com sucesso.' };
   }
 
   @Post('logout-all')
   @UseGuards(AccessTokenGuard)
+  @ApiCookieAuth('access_token')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Encerra TODAS as sessões do usuário' })
   async logoutAll(
     @GetCurrentUser() user: User,
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.logoutAll(user.id);
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
-    return { message: 'Todas as suas sessões foram encerradas.' };
+    this.clearAuthCookies(res);
+    return { message: 'Todas as sessões foram encerradas.' };
   }
 
   @Get('verify-email')
-  @ApiOperation({ summary: 'Verifica o e-mail de um usuário usando um token' })
-  @ApiResponse({ status: 200, description: 'E-mail verificado com sucesso.' })
-  @ApiResponse({ status: 400, description: 'Token inválido ou expirado.' })
+  @ApiOperation({ summary: 'Valida o token de e-mail' })
   verifyEmail(@Query('token') token: string) {
     return this.authService.verifyEmail(token);
   }
 
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reenvia o e-mail de verificação' })
-  @ApiResponse({
-    status: 200,
-    description: 'Confirmação de que o e-mail foi processado.',
-  })
-  @ApiResponse({ status: 400, description: 'O e-mail já foi verificado.' })
-  resendVerificationEmail(@Body() resendDto: ResendVerificationDto) {
-    return this.authService.resendVerificationEmail(resendDto);
+  @ApiOperation({ summary: 'Reenvia link de ativação' })
+  resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerificationEmail(dto);
   }
 
   @Get('sessions')
   @UseGuards(AccessTokenGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lista todas as sessões ativas do usuário logado' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de sessões ativas retornada com sucesso.',
-    type: [SessionDto],
-  })
+  @ApiCookieAuth('access_token')
+  @ApiOperation({ summary: 'Lista sessões ativas do usuário' })
+  @ApiResponse({ type: [SessionDto] })
   async getSessions(
     @GetCurrentUser() user: User,
     @GetCurrentSessionId() sessionId: string,
   ): Promise<SessionDto[]> {
-    console.log('--- Auth Controller ---');
-    console.log('Usuário recebido pelo decorador:', user.id, user.username);
     const sessions = await this.authService.getActiveSessions(user.id);
 
-    return sessions.map((session) => ({
-      ...session,
-      isCurrent: session.id === sessionId,
+    return sessions.map((s) => ({
+      ...s,
+      isCurrent: s.id === sessionId,
     }));
+  }
+
+  private clearAuthCookies(res: Response) {
+    res.clearCookie('access_token', COOKIE_OPTIONS);
+    res.clearCookie('refresh_token', COOKIE_OPTIONS);
   }
 }

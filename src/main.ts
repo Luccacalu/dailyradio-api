@@ -25,7 +25,12 @@ async function bootstrap() {
     .setTitle('Daily Radio API')
     .setDescription('A documentação da API para o projeto Daily Radio.')
     .setVersion('0.0.01')
-    .addBearerAuth()
+    .addCookieAuth('access_token', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'access_token',
+      description: 'JWT Access Token armazenado em Cookie HttpOnly',
+    })
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -1,40 +1,33 @@
-// src/modules/users/users.controller.ts
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import type { User } from '@prisma/client';
+import { AccessTokenGuard } from 'src/shared/guards/access-token.guard';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('users')
 @Controller('users')
+@UseGuards(AccessTokenGuard)
+@ApiCookieAuth('access_token')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Obtém os dados do usuário logado' })
-  @ApiResponse({ status: 200, description: 'Retorna os dados do usuário.' })
-  @ApiResponse({
-    status: 401,
-    description: 'Não autorizado. Token inválido ou ausente.',
-  })
   getMe(@GetCurrentUser() user: User) {
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return user;
+  }
+
+  @Patch('me')
+  updateProfile(
+    @GetCurrentUser('id') userId: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.usersService.updateProfile(userId, dto);
   }
 
   @Get('me/stations')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Retorna as estações do usuário logado' })
-  getMyStations(@GetCurrentUser() user: User) {
-    return this.usersService.findUserStations(user.id);
+  getMyStations(@GetCurrentUser('id') userId: string) {
+    return this.usersService.findUserStations(userId);
   }
 }

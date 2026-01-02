@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, UseGuards, Body } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from 'src/shared/decorators/get-current-user.decorator';
 import type { User } from '@prisma/client';
@@ -13,7 +13,7 @@ export class ReviewsController {
 
   @Get(':id/replies')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Busca as respostas (thread) de uma review específica',
   })
@@ -23,7 +23,7 @@ export class ReviewsController {
 
   @Post(':id/replies')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Responde a uma review existente' })
   createReply(
     @Param('id') parentId: string,

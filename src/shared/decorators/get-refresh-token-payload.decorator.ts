@@ -1,5 +1,4 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { Request } from 'express';
 
 export type RefreshTokenPayload = {
   sub: string;
@@ -7,15 +6,11 @@ export type RefreshTokenPayload = {
   refreshToken: string;
 };
 
-interface RequestWithRefreshTokenPayload extends Request {
-  user: RefreshTokenPayload;
-}
-
 export const GetRefreshTokenPayload = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): RefreshTokenPayload => {
+  (_: unknown, ctx: ExecutionContext): RefreshTokenPayload => {
     const request = ctx
       .switchToHttp()
-      .getRequest<RequestWithRefreshTokenPayload>();
+      .getRequest<{ user: RefreshTokenPayload }>();
     return request.user;
   },
 );
