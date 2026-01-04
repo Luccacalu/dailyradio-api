@@ -3,10 +3,12 @@ import {
   Logger,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { StationRole, Set } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 @Injectable()
 export class SetsService {
@@ -17,20 +19,6 @@ export class SetsService {
   async findOne(setId: string, userId: string): Promise<Set> {
     const set = await this.prisma.set.findUniqueOrThrow({
       where: { id: setId },
-    });
-
-    await this.prisma.stationMember
-      .findFirstOrThrow({
-        where: { userId, stationId: set.stationId },
-      })
-      .catch(() => {
-        throw new ForbiddenException(
-          'Acesso negado. Você não é membro desta estação.',
-        );
-      });
-
-    return this.prisma.set.findUniqueOrThrow({
-      where: { id: setId },
       include: {
         submissions: {
           orderBy: [{ submitter: { username: 'asc' } }, { createdAt: 'asc' }],
@@ -40,6 +28,10 @@ export class SetsService {
         },
       },
     });
+
+    await this.validateMembership(userId, set.stationId);
+
+    return set;
   }
 
   async addSubmission(
@@ -54,20 +46,10 @@ export class SetsService {
       });
 
       if (set.status !== 'ACTIVE' && set.status !== 'FINISHED_AND_OPEN') {
-        throw new ForbiddenException(
-          'Este set não está aberto para novas submissões.',
-        );
+        throw new ForbiddenException('Este set não aceita mais músicas.');
       }
 
-      await tx.stationMember
-        .findFirstOrThrow({
-          where: { userId, stationId: set.stationId },
-        })
-        .catch(() => {
-          throw new ForbiddenException(
-            'Acesso negado. Você não é membro desta estação.',
-          );
-        });
+      await this.validateMembership(userId, set.stationId, tx);
 
       if (set.station.maxSongsPerUserPerSet) {
         const submissionCount = await tx.musicSubmission.count({
@@ -75,7 +57,7 @@ export class SetsService {
         });
         if (submissionCount >= set.station.maxSongsPerUserPerSet) {
           throw new ForbiddenException(
-            'Você já atingiu o limite de músicas para este set.',
+            'Limite de músicas atingido para este set.',
           );
         }
       }
@@ -102,19 +84,9 @@ export class SetsService {
         include: { station: true },
       });
 
-      if (currentSet.status === 'FINISHED') {
-        throw new ForbiddenException('Este set não está mais ativo.');
-      }
-
-      await tx.stationMember
-        .findFirstOrThrow({
-          where: { userId, stationId: currentSet.stationId },
-        })
-        .catch(() => {
-          throw new ForbiddenException(
-            'Acesso negado. Você não é membro desta estação.',
-          );
-        });
+      if (currentSet.status === 'FINISHED')
+        throw new ConflictException('Set já finalizado.');
+      await this.validateMembership(userId, currentSet.stationId, tx);
 
       const existingVote = await tx.setReadyVote.findUnique({
         where: { userId_setId: { userId, setId } },
@@ -164,27 +136,14 @@ export class SetsService {
     const set = await this.prisma.set.findUniqueOrThrow({
       where: { id: setId },
     });
-
-    const membership = await this.prisma.stationMember
-      .findUniqueOrThrow({
-        where: { userId_stationId: { userId, stationId: set.stationId } },
-      })
-      .catch(() => {
-        throw new ForbiddenException('Acesso negado.');
-      });
-
-    if (
-      membership.role !== StationRole.ADMIN &&
-      membership.role !== StationRole.MODERATOR
-    ) {
-      throw new ForbiddenException(
-        'Apenas administradores ou moderadores podem reabrir um set.',
-      );
-    }
+    await this.validateMembership(userId, set.stationId, this.prisma, [
+      StationRole.ADMIN,
+      StationRole.MODERATOR,
+    ]);
 
     if (set.status !== 'FINISHED') {
-      throw new ConflictException(
-        'Apenas sets com status "FINISHED" podem ser reabertos.',
+      throw new BadRequestException(
+        'Apenas sets finalizados podem ser reabertos.',
       );
     }
 
@@ -204,26 +163,13 @@ export class SetsService {
     const set = await this.prisma.set.findUniqueOrThrow({
       where: { id: setId },
     });
-
-    const membership = await this.prisma.stationMember
-      .findUniqueOrThrow({
-        where: { userId_stationId: { userId, stationId: set.stationId } },
-      })
-      .catch(() => {
-        throw new ForbiddenException('Acesso negado.');
-      });
-
-    if (
-      membership.role !== StationRole.ADMIN &&
-      membership.role !== StationRole.MODERATOR
-    ) {
-      throw new ForbiddenException(
-        'Apenas administradores ou moderadores podem fechar um set.',
-      );
-    }
+    await this.validateMembership(userId, set.stationId, this.prisma, [
+      StationRole.ADMIN,
+      StationRole.MODERATOR,
+    ]);
 
     if (set.status !== 'FINISHED_AND_OPEN') {
-      throw new ConflictException(
+      throw new BadRequestException(
         'Apenas sets com status "FINISHED_AND_OPEN" podem ser fechados.',
       );
     }
@@ -240,5 +186,25 @@ export class SetsService {
     );
 
     return updatedSet;
+  }
+
+  private async validateMembership(
+    userId: string,
+    stationId: string,
+    tx: PrismaClient | Prisma.TransactionClient = this.prisma,
+    roles?: StationRole[],
+  ) {
+    const member = await tx.stationMember.findUnique({
+      where: { userId_stationId: { userId, stationId } },
+    });
+
+    if (!member)
+      throw new ForbiddenException('Você não pertence a esta estação.');
+
+    if (roles && !roles.includes(member.role)) {
+      throw new ForbiddenException('Você não tem permissão para esta ação.');
+    }
+
+    return member;
   }
 }

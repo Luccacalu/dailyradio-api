@@ -16,13 +16,12 @@ import {
   ApiResponse,
   ApiCookieAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
-import type { User } from '@prisma/client';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
+import { AccessTokenGuard } from 'src/shared/guards/access-token.guard';
 
 @ApiTags('sets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AccessTokenGuard)
 @ApiCookieAuth('access_token')
 @Controller('sets')
 export class SetsController {
@@ -32,25 +31,25 @@ export class SetsController {
   @ApiOperation({
     summary: 'Busca um set pelo ID com todas as suas músicas e reviews',
   })
-  findOne(@Param('id') id: string, @GetCurrentUser() user: User) {
-    return this.setsService.findOne(id, user.id);
+  findOne(@Param('id') id: string, @GetCurrentUser('id') userId: string) {
+    return this.setsService.findOne(id, userId);
   }
 
   @Post(':id/submissions')
   @ApiOperation({ summary: 'Adiciona uma nova música a um set' })
   addSubmission(
     @Param('id') id: string,
-    @GetCurrentUser() user: User,
+    @GetCurrentUser('id') userId: string,
     @Body() createSubmissionDto: CreateSubmissionDto,
   ) {
-    return this.setsService.addSubmission(id, user.id, createSubmissionDto);
+    return this.setsService.addSubmission(id, userId, createSubmissionDto);
   }
 
   @Post(':id/ready')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Vota para finalizar o set atual' })
-  voteToEnd(@Param('id') id: string, @GetCurrentUser() user: User) {
-    return this.setsService.voteToEnd(id, user.id);
+  voteToEnd(@Param('id') id: string, @GetCurrentUser('id') userId: string) {
+    return this.setsService.voteToEnd(id, userId);
   }
 
   @Patch(':id/reopen')
@@ -66,8 +65,8 @@ export class SetsController {
     status: 409,
     description: 'O set não está no estado "FINISHED".',
   })
-  reopenSet(@Param('id') id: string, @GetCurrentUser() user: User) {
-    return this.setsService.reopenSet(id, user.id);
+  reopenSet(@Param('id') id: string, @GetCurrentUser('id') userId: string) {
+    return this.setsService.reopenSet(id, userId);
   }
 
   @Patch(':id/close')
@@ -83,7 +82,7 @@ export class SetsController {
     status: 409,
     description: 'O set não está no estado "FINISHED_AND_OPEN".',
   })
-  closeSet(@Param('id') id: string, @GetCurrentUser() user: User) {
-    return this.setsService.closeSet(id, user.id);
+  closeSet(@Param('id') id: string, @GetCurrentUser('id') userId: string) {
+    return this.setsService.closeSet(id, userId);
   }
 }

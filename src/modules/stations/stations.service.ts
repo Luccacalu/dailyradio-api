@@ -27,28 +27,11 @@ export class StationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createStationDto: CreateStationDto, creatorId: string) {
-    if (createStationDto.mode === StationModeDto.FREEFLOW) {
-      if (
-        !createStationDto.maxSongsPerUserPerSet ||
-        !createStationDto.votingThresholdPercent
-      ) {
-        throw new BadRequestException(
-          'Para o modo Freeflow, é necessário definir o máximo de músicas e a % de votos.',
-        );
-      }
-    } else if (createStationDto.mode === StationModeDto.BACKSTAGE) {
-      if (!createStationDto.reviewsNeededToPost) {
-        throw new BadRequestException(
-          'Para o modo Backstage, é necessário definir o número de reviews para postar.',
-        );
-      }
-    }
+    this.validateModeRequirements(createStationDto);
 
-    let passwordHash: string | null = null;
-    if (createStationDto.password) {
-      const salt = await bcrypt.genSalt(8);
-      passwordHash = await bcrypt.hash(createStationDto.password, salt);
-    }
+    const passwordHash = createStationDto.password
+      ? await bcrypt.hash(createStationDto.password, 8)
+      : null;
 
     return this.prisma.$transaction(async (tx) => {
       const station = await tx.station.create({
@@ -101,7 +84,7 @@ export class StationsService {
     });
   }
 
-  findOne(id: string) {
+  async findOne(id: string) {
     return this.prisma.station.findUniqueOrThrow({
       where: { id },
       include: {
@@ -136,7 +119,7 @@ export class StationsService {
     if (updateStationDto.password) {
       updateStationDto.password = await bcrypt.hash(
         updateStationDto.password,
-        10,
+        8,
       );
     }
 
@@ -178,19 +161,11 @@ export class StationsService {
     }
 
     if (station.passwordHash) {
-      if (!joinStationDto.password) {
-        throw new BadRequestException(
-          'Esta estação é privada. Uma senha é necessária.',
-        );
-      }
-
-      const isPasswordMatching = await bcrypt.compare(
-        joinStationDto.password,
-        station.passwordHash,
-      );
-
-      if (!isPasswordMatching) {
-        throw new UnauthorizedException('Senha da estação incorreta.');
+      if (
+        !joinStationDto.password ||
+        !(await bcrypt.compare(joinStationDto.password, station.passwordHash))
+      ) {
+        throw new UnauthorizedException('Senha incorreta.');
       }
     }
 
@@ -225,9 +200,7 @@ export class StationsService {
       });
 
       if (adminCount <= 1) {
-        throw new ForbiddenException(
-          'Você é o último administrador e não pode sair. Promova outro membro a administrador antes de sair.',
-        );
+        throw new ForbiddenException('Promova outro admin antes de sair.');
       }
     }
 
@@ -314,5 +287,19 @@ export class StationsService {
     );
 
     return updatedMembership;
+  }
+
+  private validateModeRequirements(dto: CreateStationDto) {
+    if (dto.mode === StationModeDto.FREEFLOW) {
+      if (!dto.maxSongsPerUserPerSet || !dto.votingThresholdPercent) {
+        throw new BadRequestException('Configurações de Freeflow incompletas.');
+      }
+    } else if (dto.mode === StationModeDto.BACKSTAGE) {
+      if (!dto.reviewsNeededToPost) {
+        throw new BadRequestException(
+          'Reviews necessárias para Backstage não definidas.',
+        );
+      }
+    }
   }
 }

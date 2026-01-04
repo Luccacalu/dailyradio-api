@@ -19,26 +19,25 @@ import {
   ApiResponse,
   ApiCookieAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../../shared/decorators/get-current-user.decorator';
-import type { User } from '@prisma/client';
 import { JoinStationDto } from './dto/join-station.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { AccessTokenGuard } from 'src/shared/guards/access-token.guard';
 
 @ApiTags('stations')
+@ApiCookieAuth('access_token')
+@UseGuards(AccessTokenGuard)
 @Controller('stations')
 export class StationsController {
   constructor(private readonly stationsService: StationsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Cria uma nova estação' })
   create(
     @Body() createStationDto: CreateStationDto,
-    @GetCurrentUser() user: User,
+    @GetCurrentUser('id') userId: string,
   ) {
-    return this.stationsService.create(createStationDto, user.id);
+    return this.stationsService.create(createStationDto, userId);
   }
 
   @Get()
@@ -48,36 +47,28 @@ export class StationsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Busca uma estação pelo ID' })
   findOne(@Param('id') id: string) {
     return this.stationsService.findOne(id);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Atualiza uma estação' })
   update(
     @Param('id') id: string,
     @Body() updateStationDto: UpdateStationDto,
-    @GetCurrentUser() user: User,
+    @GetCurrentUser('id') userId: string,
   ) {
-    return this.stationsService.update(id, updateStationDto, user.id);
+    return this.stationsService.update(id, updateStationDto, userId);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Deleta uma estação' })
-  remove(@Param('id') id: string, @GetCurrentUser() user: User) {
-    return this.stationsService.remove(id, user.id);
+  remove(@Param('id') id: string, @GetCurrentUser('id') userId: string) {
+    return this.stationsService.remove(id, userId);
   }
 
   @Post(':id/join')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Entra em uma estação' })
   @ApiResponse({
@@ -94,15 +85,13 @@ export class StationsController {
   })
   join(
     @Param('id') stationId: string,
-    @GetCurrentUser() user: User,
+    @GetCurrentUser('id') userId: string,
     @Body() joinStationDto: JoinStationDto,
   ) {
-    return this.stationsService.join(stationId, user.id, joinStationDto);
+    return this.stationsService.join(stationId, userId, joinStationDto);
   }
 
   @Delete(':id/leave')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sai de uma estação' })
   @ApiResponse({
@@ -117,13 +106,11 @@ export class StationsController {
     status: 404,
     description: 'Estação não encontrada ou usuário não é membro.',
   })
-  leave(@Param('id') stationId: string, @GetCurrentUser() user: User) {
-    return this.stationsService.leave(stationId, user.id);
+  leave(@Param('id') stationId: string, @GetCurrentUser('id') userId: string) {
+    return this.stationsService.leave(stationId, userId);
   }
 
   @Get(':id/sets')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Lista todos os sets de uma estação (passados e atual)',
   })
@@ -135,13 +122,14 @@ export class StationsController {
     status: 403,
     description: 'Acesso negado. Usuário não é membro da estação.',
   })
-  findAllSets(@Param('id') stationId: string, @GetCurrentUser() user: User) {
-    return this.stationsService.findAllSets(stationId, user.id);
+  findAllSets(
+    @Param('id') stationId: string,
+    @GetCurrentUser('id') userId: string,
+  ) {
+    return this.stationsService.findAllSets(stationId, userId);
   }
 
   @Patch(':stationId/members/:memberId')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Altera o cargo de um membro na estação (Admin Only)',
   })
@@ -157,13 +145,13 @@ export class StationsController {
   updateMemberRole(
     @Param('stationId') stationId: string,
     @Param('memberId') memberId: string,
-    @GetCurrentUser() user: User,
+    @GetCurrentUser('id') userId: string,
     @Body() updateMemberRoleDto: UpdateMemberRoleDto,
   ) {
     return this.stationsService.updateMemberRole(
       stationId,
       memberId,
-      user.id,
+      userId,
       updateMemberRoleDto,
     );
   }
