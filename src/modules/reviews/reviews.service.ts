@@ -27,7 +27,7 @@ export class ReviewsService {
   async createRootReview(
     submissionId: string,
     authorId: string,
-    dto: CreateReviewDto,
+    createReviewDto: CreateReviewDto,
   ) {
     const submission = await this.prisma.musicSubmission.findUniqueOrThrow({
       where: { id: submissionId },
@@ -40,36 +40,15 @@ export class ReviewsService {
       );
     }
 
-    await this.prisma.stationMember
-      .findFirstOrThrow({
-        where: { userId: authorId, stationId: submission.set.stationId },
-      })
-      .catch(() => {
-        throw new ForbiddenException(
-          'Apenas membros da estação podem fazer reviews.',
-        );
-      });
+    const { station } = submission.set;
 
-    const { ratingSystem, reviewSystem } = submission.set.station;
-    if (ratingSystem === 'TRUE' && !dto.rating) {
-      throw new BadRequestException('Rating é obrigatório nesta estação.');
-    }
-    if (reviewSystem === 'TRUE' && !dto.comment) {
-      throw new BadRequestException('Comentário é obrigatório nesta estação.');
-    }
-    if (ratingSystem === 'FALSE' && dto.rating) {
-      throw new BadRequestException('Rating não é permitido nesta estação.');
-    }
-    if (reviewSystem === 'FALSE' && dto.comment) {
-      throw new BadRequestException(
-        'Comentário não é permitido nesta estação.',
-      );
-    }
+    await this.validateMembership(authorId, station.id);
+    this.validateStationRules(station, createReviewDto);
 
     return this.prisma.review.create({
       data: {
-        rating: dto.rating,
-        comment: dto.comment,
+        rating: createReviewDto.rating,
+        comment: createReviewDto.comment,
         submissionId,
         authorId,
         parentId: null,
@@ -77,7 +56,11 @@ export class ReviewsService {
     });
   }
 
-  async createReply(parentId: string, authorId: string, dto: CreateReplyDto) {
+  async createReply(
+    parentId: string,
+    authorId: string,
+    createReplyDto: CreateReplyDto,
+  ) {
     const parentReview = await this.prisma.review.findUniqueOrThrow({
       where: { id: parentId },
       include: {
@@ -86,25 +69,54 @@ export class ReviewsService {
     });
 
     const { submission } = parentReview;
-    const { station } = submission.set;
-
-    await this.prisma.stationMember
-      .findFirstOrThrow({
-        where: { userId: authorId, stationId: station.id },
-      })
-      .catch(() => {
-        throw new ForbiddenException(
-          'Apenas membros da estação podem responder a reviews.',
-        );
-      });
+    await this.validateMembership(authorId, submission.set.stationId);
 
     return this.prisma.review.create({
       data: {
-        comment: dto.comment,
+        comment: createReplyDto.comment,
         submissionId: submission.id,
         authorId,
         parentId,
       },
     });
+  }
+
+  private async validateMembership(userId: string, stationId: string) {
+    const isMember = await this.prisma.stationMember.findUnique({
+      where: { userId_stationId: { userId, stationId } },
+    });
+
+    if (!isMember) {
+      throw new ForbiddenException(
+        'Apenas membros da estação podem interagir aqui.',
+      );
+    }
+  }
+
+  private validateStationRules(
+    station: { ratingSystem: string; reviewSystem: string },
+    dto: CreateReviewDto,
+  ) {
+    const { ratingSystem, reviewSystem } = station;
+
+    if (ratingSystem === 'TRUE' && dto.rating === undefined) {
+      throw new BadRequestException('A nota é obrigatória nesta estação.');
+    }
+    if (reviewSystem === 'TRUE' && !dto.comment) {
+      throw new BadRequestException(
+        'O comentário é obrigatório nesta estação.',
+      );
+    }
+
+    if (ratingSystem === 'FALSE' && dto.rating !== undefined) {
+      throw new BadRequestException(
+        'Esta estação não permite notas, apenas comentários.',
+      );
+    }
+    if (reviewSystem === 'FALSE' && dto.comment) {
+      throw new BadRequestException(
+        'Esta estação não permite comentários, apenas notas.',
+      );
+    }
   }
 }

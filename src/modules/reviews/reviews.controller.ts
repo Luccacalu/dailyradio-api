@@ -1,19 +1,18 @@
 import { Controller, Get, Post, Param, UseGuards, Body } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { ApiTags, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { GetCurrentUser } from 'src/shared/decorators/get-current-user.decorator';
-import type { User } from '@prisma/client';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { AccessTokenGuard } from 'src/shared/guards/access-token.guard';
 
 @ApiTags('reviews')
+@ApiCookieAuth('access_token')
+@UseGuards(AccessTokenGuard)
 @Controller('reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Get(':id/replies')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({
     summary: 'Busca as respostas (thread) de uma review específica',
   })
@@ -22,14 +21,12 @@ export class ReviewsController {
   }
 
   @Post(':id/replies')
-  @UseGuards(JwtAuthGuard)
-  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Responde a uma review existente' })
   createReply(
     @Param('id') parentId: string,
-    @GetCurrentUser() user: User,
+    @GetCurrentUser('id') userId: string,
     @Body() createReplyDto: CreateReplyDto,
   ) {
-    return this.reviewsService.createReply(parentId, user.id, createReplyDto);
+    return this.reviewsService.createReply(parentId, userId, createReplyDto);
   }
 }

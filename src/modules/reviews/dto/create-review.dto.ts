@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateReviewDto {
   @ApiPropertyOptional({
@@ -19,6 +27,10 @@ export class CreateReviewDto {
     description: 'O comentário em texto da review.',
     example: 'Achei a linha de baixo dessa música sensacional!',
   })
+  @MaxLength(5000)
+  @Transform(({ value }: { value: string }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
   @IsString()
   comment?: string;

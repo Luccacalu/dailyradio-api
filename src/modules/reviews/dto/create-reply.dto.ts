@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
 
 export class CreateReplyDto {
   @ApiPropertyOptional({
@@ -7,7 +8,11 @@ export class CreateReplyDto {
     example:
       'Discordo quanto à linha de baixo, achei que ficou boa mas nada sensacional.',
   })
-  @IsOptional()
+  @IsNotEmpty()
+  @MaxLength(5000)
+  @Transform(({ value }: { value: string }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
-  comment?: string;
+  comment: string;
 }
