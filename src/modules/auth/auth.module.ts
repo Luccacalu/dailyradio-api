@@ -7,6 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../../core/email/email.module';
 import { PassportModule } from '@nestjs/passport';
 import { AccessTokenStrategy } from './access-token.strategy';
+import { RefreshTokenStrategy } from './refresh-token.strategy';
 
 @Module({
   imports: [
@@ -27,6 +28,6 @@ import { AccessTokenStrategy } from './access-token.strategy';
     }), */
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccessTokenStrategy],
+  providers: [AuthService, AccessTokenStrategy, RefreshTokenStrategy],
 })
 export class AuthModule {}
